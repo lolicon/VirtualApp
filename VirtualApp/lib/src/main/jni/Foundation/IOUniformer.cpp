@@ -569,7 +569,12 @@ void IOUniformer::startUniformer(int api_level) {
     HOOK_SYMBOL(RTLD_DEFAULT, chdir);
     HOOK_SYMBOL(RTLD_DEFAULT, truncate);
     HOOK_SYMBOL(RTLD_DEFAULT, __statfs64);
-    HOOK_SYMBOL(RTLD_DEFAULT, execve); // *
+    /**
+     * 华为Mate8（EMUI5.0，Android7.0）因无法使用视频聊天和语音聊天，取消execve的hook就能正常使用，原因未知
+     * 且通过调试发现execve现目前只发现dex2oat时使用，dex2oat无需替换path
+     * 这里暂时先取消execve的hook
+     */
+    // HOOK_SYMBOL(RTLD_DEFAULT, execve); // *
     HOOK_SYMBOL(RTLD_DEFAULT, stat);   // *
     HOOK_SYMBOL(RTLD_DEFAULT, access); // *
     HOOK_SYMBOL(RTLD_DEFAULT, readlink);
