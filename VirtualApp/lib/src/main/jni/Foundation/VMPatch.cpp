@@ -14,6 +14,8 @@ typedef jint (*Native_cameraNativeSetupFunc_T1)(JNIEnv *, jobject, jobject, jint
 
 typedef jint (*Native_cameraNativeSetupFunc_T2)(JNIEnv *, jobject, jobject, jint, jstring);
 
+typedef jint (*Native_cameraNativeSetupFunc_T3)(JNIEnv *, jobject, jobject, jint, jint, jstring, jboolean);
+
 typedef jint (*Native_getCallingUid)(JNIEnv *, jclass);
 
 typedef jint (*Native_audioRecordNativeCheckPermission)(JNIEnv *, jobject, jstring);
@@ -46,6 +48,7 @@ static struct {
     union {
         Native_cameraNativeSetupFunc_T1 t1;
         Native_cameraNativeSetupFunc_T2 t2;
+        Native_cameraNativeSetupFunc_T3 t3;
     } orig_native_cameraNativeSetupFunc;
 
     Bridge_DalvikBridgeFunc orig_openDexFile_dvm;
@@ -198,6 +201,11 @@ static jint new_native_cameraNativeSetupFunc_T2(JNIEnv *env, jobject thiz, jobje
                                                         host);
 }
 
+static jint new_native_cameraNativeSetupFunc_T3(JNIEnv *env, jobject thiz, jobject camera_this,
+                                                jint cameraId, jint halVersion, jstring packageName, jboolean b) {
+    jstring host = env->NewStringUTF(gOffset.hostPackageName);
+    return gOffset.orig_native_cameraNativeSetupFunc.t3(env, thiz, camera_this, cameraId, halVersion, host, b);
+}
 
 static jint
 new_native_audioRecordNativeCheckPermission(JNIEnv *env, jobject thiz, jstring _packagename) {
@@ -307,11 +315,13 @@ replaceCameraNativeSetupMethod(JNIEnv *env, jobject javaMethod, jboolean isArt, 
         gOffset.orig_cameraNativeSetup_dvm = (Bridge_DalvikBridgeFunc) (*jniFuncPtr);
         *jniFuncPtr = (void *) new_bridge_cameraNativeSetupFunc;
     } else {
-        if (apiLevel >= ANDROID_L) {
+        if (gOffset.cameraMethodType == 4) {
+            gOffset.orig_native_cameraNativeSetupFunc.t3 = (Native_cameraNativeSetupFunc_T3) (*jniFuncPtr);
+            *jniFuncPtr = (void *) new_native_cameraNativeSetupFunc_T3;
+        } else if (apiLevel >= ANDROID_L) {
             gOffset.orig_native_cameraNativeSetupFunc.t1 = (Native_cameraNativeSetupFunc_T1) (*jniFuncPtr);
             *jniFuncPtr = (void *) new_native_cameraNativeSetupFunc_T1;
-        }
-        if (ANDROID_JBMR2 <= apiLevel && apiLevel < ANDROID_L) {
+        } else if (ANDROID_JBMR2 <= apiLevel && apiLevel < ANDROID_L) {
             gOffset.orig_native_cameraNativeSetupFunc.t2 = (Native_cameraNativeSetupFunc_T2) (*jniFuncPtr);
             *jniFuncPtr = (void *) new_native_cameraNativeSetupFunc_T2;
         }

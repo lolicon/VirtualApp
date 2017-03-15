@@ -17,6 +17,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -89,6 +90,10 @@ public class NativeEngine {
             for (Method method : methods) {
                 if ("native_setup".equals(method.getName())) {
                     gCameraNativeSetup = method;
+                    Type[] paramTypes = gCameraNativeSetup.getGenericParameterTypes();
+                    if (paramTypes.length == 5 && paramTypes[4] == boolean.class) {
+                        gCameraMethodType = 4;
+                    }
                     break;
                 }
             }
