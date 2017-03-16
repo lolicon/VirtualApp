@@ -43,6 +43,7 @@ import com.lody.virtual.remote.PendingResultData;
 import com.lody.virtual.server.secondary.FakeIdentityBinder;
 
 import java.io.File;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -157,7 +158,8 @@ public final class VClientImpl extends IVClient.Stub {
         } else {
             intent = data.intent;
         }
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.N) {
+        // 有些Android 25以上的Rom不知什么原因也是使用了跟25以下的performNewIntents一样的2个参数
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.N || ActivityThreadNMR1.performNewIntents == null) {
             ActivityThread.performNewIntents.call(
                     VirtualCore.mainThread(),
                     data.token,
