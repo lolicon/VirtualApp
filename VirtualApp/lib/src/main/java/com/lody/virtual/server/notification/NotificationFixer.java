@@ -13,6 +13,7 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.Build;
+import android.util.Log;
 import android.widget.RemoteViews;
 
 import com.lody.virtual.helper.utils.Reflect;
@@ -30,6 +31,49 @@ import mirror.com.android.internal.R_Hide;
 
     NotificationFixer(NotificationCompat notificationCompat) {
         this.mNotificationCompat = notificationCompat;
+    }
+
+    private static void fixNotificationIcon(Context context, Notification notification, Notification.Builder builder) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            //noinspection deprecation
+            builder.setSmallIcon(notification.icon);
+            //noinspection deprecation
+            builder.setLargeIcon(notification.largeIcon);
+        } else {
+            Icon icon = notification.getSmallIcon();
+            if (icon != null) {
+                Bitmap bitmap = drawableToBitMap(icon.loadDrawable(context));
+                if (bitmap != null) {
+                    Icon newIcon = Icon.createWithBitmap(bitmap);
+                    builder.setSmallIcon(newIcon);
+                }
+            }
+            Icon largeIcon = notification.getLargeIcon();
+            if (largeIcon != null) {
+                Bitmap bitmap = drawableToBitMap(largeIcon.loadDrawable(context));
+                if (bitmap != null) {
+                    Icon newIcon = Icon.createWithBitmap(bitmap);
+                    builder.setLargeIcon(newIcon);
+                }
+            }
+        }
+    }
+
+    private static Bitmap drawableToBitMap(Drawable drawable) {
+        if (drawable == null) {
+            return null;
+        }
+        if (drawable instanceof BitmapDrawable) {
+            BitmapDrawable bitmapDrawable = ((BitmapDrawable) drawable);
+            return bitmapDrawable.getBitmap();
+        } else {
+            Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(),
+                    drawable.getOpacity() != PixelFormat.OPAQUE ? Bitmap.Config.ARGB_8888 : Bitmap.Config.RGB_565);
+            Canvas canvas = new Canvas(bitmap);
+            drawable.setBounds(0, 0, drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());
+            drawable.draw(canvas);
+            return bitmap;
+        }
     }
 
     @TargetApi(Build.VERSION_CODES.M)
@@ -54,8 +98,10 @@ import mirror.com.android.internal.R_Hide;
     void fixNotificationRemoteViews(Context pluginContext, Notification notification) {
         Notification rebuild = null;
         try {
-            rebuild = Reflect.on(Notification.Builder.class).create(pluginContext, notification).get();
+            Notification.Builder builder = Reflect.on(Notification.Builder.class).create(pluginContext, notification).get();
+            rebuild = builder.build();
         } catch (Exception e) {
+            Log.e(TAG, "" + Log.getStackTraceString(e));
             // ignore
         }
         if (rebuild != null) {
@@ -153,18 +199,6 @@ import mirror.com.android.internal.R_Hide;
         return hasIcon;
     }
 
-    private static class BitmapReflectionAction {
-        int viewId;
-        String methodName;
-        Bitmap bitmap;
-
-        BitmapReflectionAction(int viewId, String methodName, Bitmap bitmap) {
-            this.viewId = viewId;
-            this.methodName = methodName;
-            this.bitmap = bitmap;
-        }
-    }
-
     void fixIconImage(Resources resources, RemoteViews remoteViews, boolean hasIconBitmap, Notification notification) {
         if (remoteViews == null) return;
         if (!mNotificationCompat.isSystemLayout(remoteViews)) {
@@ -175,11 +209,10 @@ import mirror.com.android.internal.R_Hide;
         try {
             //noinspection deprecation
             int id = R_Hide.id.icon.get();
-            if (!hasIconBitmap) {
-                Drawable drawable = resources.getDrawable(android.R.drawable.sym_def_app_icon);//notification.icon);
+            if (!hasIconBitmap && notification.largeIcon != null) {
+                Drawable drawable = resources.getDrawable(notification.icon);
                 drawable.setLevel(notification.iconLevel);
                 Bitmap bitmap = drawableToBitMap(drawable);
-//                Log.i(NotificationHandler.TAG, "den" + resources.getConfiguration().densityDpi);
                 remoteViews.setImageViewBitmap(id, bitmap);
             }
             if (Build.VERSION.SDK_INT >= 21) {
@@ -194,46 +227,15 @@ import mirror.com.android.internal.R_Hide;
         }
     }
 
-    private static void fixNotificationIcon(Context context, Notification notification, Notification.Builder builder) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            //noinspection deprecation
-            builder.setSmallIcon(notification.icon);
-            //noinspection deprecation
-            builder.setLargeIcon(notification.largeIcon);
-        } else {
-            Icon icon = notification.getSmallIcon();
-            if (icon != null) {
-                Bitmap bitmap = drawableToBitMap(icon.loadDrawable(context));
-                if (bitmap != null) {
-                    Icon newIcon = Icon.createWithBitmap(bitmap);
-                    builder.setSmallIcon(newIcon);
-                }
-            }
-            Icon largeIcon = notification.getLargeIcon();
-            if (largeIcon != null) {
-                Bitmap bitmap = drawableToBitMap(largeIcon.loadDrawable(context));
-                if (bitmap != null) {
-                    Icon newIcon = Icon.createWithBitmap(bitmap);
-                    builder.setLargeIcon(newIcon);
-                }
-            }
-        }
-    }
+    private static class BitmapReflectionAction {
+        int viewId;
+        String methodName;
+        Bitmap bitmap;
 
-    private static Bitmap drawableToBitMap(Drawable drawable) {
-        if (drawable == null) {
-            return null;
-        }
-        if (drawable instanceof BitmapDrawable) {
-            BitmapDrawable bitmapDrawable = ((BitmapDrawable) drawable);
-            return bitmapDrawable.getBitmap();
-        } else {
-            Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(),
-                    drawable.getOpacity() != PixelFormat.OPAQUE ? Bitmap.Config.ARGB_8888 : Bitmap.Config.RGB_565);
-            Canvas canvas = new Canvas(bitmap);
-            drawable.setBounds(0, 0, drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());
-            drawable.draw(canvas);
-            return bitmap;
+        BitmapReflectionAction(int viewId, String methodName, Bitmap bitmap) {
+            this.viewId = viewId;
+            this.methodName = methodName;
+            this.bitmap = bitmap;
         }
     }
 }
