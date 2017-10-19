@@ -290,6 +290,9 @@ import static android.content.pm.ActivityInfo.LAUNCH_SINGLE_TOP;
         }
         if (clearTask) {
             if (containFlags(intent, Intent.FLAG_ACTIVITY_NEW_TASK)) {
+                // when both clear_task and new_task used, the sourceTask should respect target activity's affinity
+                // not the origin task
+                sourceTask = null;
                 clearTarget = ClearTarget.TASK;
             } else {
                 removeFlags(intent, Intent.FLAG_ACTIVITY_CLEAR_TASK);
